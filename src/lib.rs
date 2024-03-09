@@ -1,5 +1,7 @@
+use bevy::app::Plugin;
 use bevy::asset::io::Reader;
 use bevy::asset::Asset;
+use bevy::asset::AssetApp;
 use bevy::asset::AssetLoader;
 use bevy::asset::AsyncReadExt;
 use bevy::asset::Handle;
@@ -98,6 +100,18 @@ impl ElementUtil for Element {
             xmltree::XMLNode::Element(e) => (e.name == s).then_some(e),
             _ => None,
         })
+    }
+}
+
+pub struct TiledMapPlugin;
+
+impl Plugin for TiledMapPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.init_asset_loader::<TiledMapLoader>();
+        app.init_asset_loader::<TiledSetLoader>();
+
+        app.init_asset::<TiledMap>();
+        app.init_asset::<TiledSet>();
     }
 }
 
