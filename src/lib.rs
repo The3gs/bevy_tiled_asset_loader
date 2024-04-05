@@ -13,6 +13,7 @@ use bevy::reflect::TypePath;
 use bevy::render::color::Color;
 use bevy::render::texture::Image;
 
+use bevy::sprite::TextureAtlasLayout;
 use bevy::utils::BoxedFuture;
 
 use bevy::utils::HashMap;
@@ -649,15 +650,12 @@ pub enum RenderMode {
 pub struct TiledSet {
     pub name: String,
     pub class: String,
-    pub tile_size: (usize, usize),
-    pub tile_spacing: usize,
-    pub tile_margin: usize,
     pub tile_count: usize,
     pub columns: usize,
     pub object_alignment: TileObjectAlignment,
     pub render_mode: RenderMode,
     pub fill_mode: TileSetFillMode,
-    pub image: Handle<Image>,
+    pub texture: Option<(Handle<TextureAtlasLayout>, Handle<Image>)>,
     pub tiles: HashMap<usize, TileData>,
     pub properties: HashMap<String, Property>,
 }
@@ -714,10 +712,10 @@ async fn parse_tileset(
 
         let class = set.attributes.get("name").cloned().unwrap_or(String::new());
 
-        let tilewidth = set.get_attr_or_default("tilewidth", |n| Ok(n.parse::<usize>()?))?;
-        let tileheight = set.get_attr_or_default("tileheight", |n| Ok(n.parse::<usize>()?))?;
-        let spacing = set.get_attr_or_default("spacing", |n| Ok(n.parse::<usize>()?))?;
-        let margin = set.get_attr_or_default("margin", |n| Ok(n.parse::<usize>()?))?;
+        let tilewidth = set.get_attr_or_default("tilewidth", |n| Ok(n.parse::<f32>()?))?;
+        let tileheight = set.get_attr_or_default("tileheight", |n| Ok(n.parse::<f32>()?))?;
+        let spacing = set.get_attr_or_default("spacing", |n| Ok(n.parse::<f32>()?))?;
+        let margin = set.get_attr_or_default("margin", |n| Ok(n.parse::<f32>()?))?;
         let tilecount = set.get_attr_or_default("tilecount", |n| Ok(n.parse::<usize>()?))?;
         let columns = set.get_attr_or_default("columns", |n| Ok(n.parse::<usize>()?))?;
 
@@ -748,11 +746,24 @@ async fn parse_tileset(
             _ => Err(TiledAssetLoaderError::InvalidValue(s.clone())),
         })?;
 
-        let image = set
-            .get_child("image")
-            .ok_or(TiledAssetLoaderError::MissingField("image"))?;
+        let texture_layout_data = TextureAtlasLayout::from_grid(
+            Vec2::new(tileheight, tilewidth),
+            columns,
+            tilecount / columns,
+            Some(Vec2::new(spacing, spacing)),
+            Some(Vec2::new(margin, margin)),
+        );
 
-        let image: Handle<Image> = parse_image(image, load_context).await?;
+        let layout_handle =
+            load_context.add_labeled_asset(format!("{name}[layout]"), texture_layout_data);
+
+        let image = set.get_child("image");
+
+        let image: Option<Handle<Image>> = if let Some(image) = image {
+            Some(parse_image(image, load_context).await?)
+        } else {
+            None
+        };
 
         let mut tiles = HashMap::new();
         for e in set.children.iter() {
@@ -775,15 +786,12 @@ async fn parse_tileset(
         Ok(TiledSet {
             name,
             class,
-            tile_size: (tilewidth, tileheight),
-            tile_spacing: spacing,
-            tile_margin: margin,
             tile_count: tilecount,
             columns,
             object_alignment,
             render_mode,
             fill_mode,
-            image,
+            texture: image.map(|image| (layout_handle, image)),
             tiles,
             properties,
         })
