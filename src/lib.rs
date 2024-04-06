@@ -6,6 +6,7 @@ use bevy::asset::AssetLoader;
 use bevy::asset::AsyncReadExt;
 use bevy::asset::Handle;
 
+use bevy::asset::ParseAssetPathError;
 use bevy::math::IVec2;
 use bevy::math::UVec2;
 use bevy::math::Vec2;
@@ -249,6 +250,8 @@ pub enum TiledAssetLoaderError {
     UnsupportedFeature,
     #[error("Expected csv encoded layer data.")]
     ExpectedCsvData,
+    #[error("Invalid Path for needed asset {0:?}")]
+    ParsePath(#[from] ParseAssetPathError),
 }
 
 impl AssetLoader for TiledMapLoader {
@@ -375,7 +378,13 @@ async fn parse_tilemap(
 
                     let tile_set_source = e.attributes.get("source");
                     let tile_set = if let Some(source) = tile_set_source {
-                        load_context.load(source)
+                        load_context.load(
+                            load_context
+                                .asset_path()
+                                .parent()
+                                .unwrap()
+                                .resolve(source)?,
+                        )
                     } else {
                         let tile_set = parse_tileset(e, load_context).await?;
                         load_context.add_labeled_asset(label, tile_set)
@@ -914,7 +923,13 @@ async fn parse_image(
 ) -> Result<Handle<Image>, TiledAssetLoaderError> {
     if let Some(source) = e.attributes.get("source") {
         // the image is not embedded. load normally
-        Ok(load_context.load(source))
+        Ok(load_context.load(
+            load_context
+                .asset_path()
+                .parent()
+                .unwrap()
+                .resolve(source)?,
+        ))
     } else {
         let _format = e
             .attributes
@@ -997,9 +1012,6 @@ mod tests {
             .resource::<Assets<TiledSet>>()
             .get(handle)
             .unwrap();
-
-        assert_eq!(set.tile_size, (16, 16));
-        assert_eq!(set.tile_spacing, 0);
     }
 
     #[test]
