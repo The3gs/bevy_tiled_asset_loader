@@ -207,7 +207,7 @@ pub struct TiledMap {
     pub orientation: MapOrientation,
     pub render_order: MapRenderOrder,
     pub map_size: UVec2,
-    pub tile_size: UVec2,
+    pub tile_size: Vec2,
     pub paralax_origin: IVec2,
     pub background_color: Option<Color>,
     pub next_layer_id: usize,
@@ -338,8 +338,8 @@ async fn parse_tilemap(
 
     let width = map.get_required_attr("width", |s| Ok(s.parse::<u32>()?))?;
     let height = map.get_required_attr("height", |s| Ok(s.parse::<u32>()?))?;
-    let tilewidth = map.get_required_attr("tilewidth", |s| Ok(s.parse::<u32>()?))?;
-    let tileheight = map.get_required_attr("tileheight", |s| Ok(s.parse::<u32>()?))?;
+    let tilewidth = map.get_required_attr("tilewidth", |s| Ok(s.parse::<f32>()?))?;
+    let tileheight = map.get_required_attr("tileheight", |s| Ok(s.parse::<f32>()?))?;
     let parallaxoriginx = map.get_attr_or_default("parallaxoriginx", |s| Ok(s.parse::<i32>()?))?;
     let parallaxoriginy = map.get_attr_or_default("parallaxoriginy", |s| Ok(s.parse::<i32>()?))?;
 
@@ -418,7 +418,7 @@ async fn parse_tilemap(
         orientation,
         render_order,
         map_size: UVec2::new(width, height),
-        tile_size: UVec2::new(tilewidth, tileheight),
+        tile_size: Vec2::new(tilewidth, tileheight),
         paralax_origin: IVec2::new(parallaxoriginx, parallaxoriginy),
         background_color,
         next_layer_id: next_layer_id
