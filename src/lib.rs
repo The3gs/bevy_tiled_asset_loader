@@ -720,6 +720,7 @@ pub enum Property {
     String(String),
     Int(i64),
     Bool(bool),
+    Float(f32),
     Color([u8; 4]),
     File(String),
     Object(usize),
@@ -1013,6 +1014,7 @@ fn parse_properties(e: &Element) -> Result<HashMap<String, Property>, TiledAsset
                             }
                             "int" => Property::Int(value.map(|v| v.parse()).unwrap_or(Ok(0))?),
                             "bool" => Property::Bool(value.is_none() || value.unwrap() == "true"),
+                            "float" => Property::Float(value.map(|v| v.parse()).unwrap_or(Ok(0.0))?)
                             _ => return Err(TiledAssetLoaderError::InvalidValue(typ)),
                         },
                     ))
