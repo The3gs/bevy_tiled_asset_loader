@@ -854,7 +854,7 @@ async fn parse_tile(
         .unwrap_or(Ok(0))?;
 
     let properties = e
-        .get_child("propeties")
+        .get_child("properties")
         .map(parse_properties)
         .unwrap_or(Ok(HashMap::new()))?;
 
