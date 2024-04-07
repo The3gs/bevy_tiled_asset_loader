@@ -216,7 +216,7 @@ pub struct TiledMap {
     pub properties: HashMap<String, Property>,
     pub editor_settings: EditorSettings,
     pub tile_sets: Vec<(usize, Handle<TiledSet>)>,
-    pub layers: HashMap<LayerId, Layer>,
+    pub layers: Vec<(LayerId, Layer)>,
 }
 
 #[derive(Default)]
@@ -396,7 +396,7 @@ async fn parse_tilemap(
         }
     }
 
-    let mut layers = HashMap::new();
+    let mut layers = Vec::new();
     for e in map.children.iter() {
         match e {
             xmltree::XMLNode::Element(e) => {
@@ -406,7 +406,7 @@ async fn parse_tilemap(
                     || e.name == "imagelayer"
                 {
                     let layer = parse_layer(e, load_context).await?;
-                    layers.insert(layer.0, layer.1);
+                    layers.push((layer.0, layer.1));
                 }
             }
             _ => (),
@@ -422,7 +422,7 @@ async fn parse_tilemap(
         paralax_origin: IVec2::new(parallaxoriginx, parallaxoriginy),
         background_color,
         next_layer_id: next_layer_id
-            .unwrap_or_else(|| layers.keys().fold(0, |acc, i| i.0.max(acc)) + 1),
+            .unwrap_or_else(|| layers.iter().fold(1, |acc, (i, _)| (i.0 + 1).max(acc))),
         next_object_id: next_object_id.unwrap(),
         infinite,
         properties,
