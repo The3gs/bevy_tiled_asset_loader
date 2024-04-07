@@ -433,14 +433,14 @@ async fn parse_tilemap(
     })
 }
 
-struct Object {
-    name: String,
-    object_type: String,
-    pos: Vec2,
-    size: Vec2,
-    rotation: f32,
-    visible: bool,
-    properties: HashMap<String, Property>,
+pub struct Object {
+    pub name: String,
+    pub object_type: String,
+    pub pos: Vec2,
+    pub size: Vec2,
+    pub rotation: f32,
+    pub visible: bool,
+    pub properties: HashMap<String, Property>,
 }
 
 fn parse_object(e: &Element) -> Result<Object, TiledAssetLoaderError> {
