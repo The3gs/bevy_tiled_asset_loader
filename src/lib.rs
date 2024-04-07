@@ -193,6 +193,7 @@ pub enum LayerData {
     ObjectGroup {
         color: Option<Color>,
         draw_order: ObjectGroupDrawOrder,
+        objects: Vec<Object>,
     },
     ImageLayer {
         repeat_x: bool,
@@ -432,6 +433,47 @@ async fn parse_tilemap(
     })
 }
 
+struct Object {
+    name: String,
+    object_type: String,
+    pos: Vec2,
+    size: Vec2,
+    rotation: f32,
+    visible: bool,
+    properties: HashMap<String, Property>,
+}
+
+fn parse_object(e: &Element) -> Result<Object, TiledAssetLoaderError> {
+    let name = e.get_attr_or_default("name", |s| Ok(s.clone()))?;
+    let object_type = e.get_attr_or_default("type", |s| Ok(s.clone()))?;
+    let x = e.get_attr_or_default("x", |s| Ok(s.parse()?))?;
+    let y = e.get_attr_or_default("y", |s| Ok(s.parse()?))?;
+    let width = e.get_attr_or_default("width", |s| Ok(s.parse()?))?;
+    let height = e.get_attr_or_default("height", |s| Ok(s.parse()?))?;
+    let rotation = e.get_attr_or_default("rotation", |s| Ok(s.parse()?))?;
+    let visible = e
+        .get_optional_attr("visible", |s| match s.as_str() {
+            "0" => Ok(false),
+            "1" => Ok(true),
+            _ => Err(TiledAssetLoaderError::InvalidValue(s.clone())),
+        })?
+        .unwrap_or(true);
+    let properties = e
+        .get_child("properties")
+        .map(parse_properties)
+        .transpose()?
+        .unwrap_or_else(|| HashMap::new());
+    Ok(Object {
+        name,
+        object_type,
+        pos: Vec2::new(x, y),
+        size: Vec2::new(width, height),
+        rotation,
+        visible,
+        properties,
+    })
+}
+
 #[async_recursion]
 async fn parse_layer(
     e: &Element,
@@ -477,6 +519,10 @@ async fn parse_layer(
                 "index" => Ok(ObjectGroupDrawOrder::Index),
                 _ => Err(TiledAssetLoaderError::InvalidValue(s.clone())),
             })?,
+            objects: e
+                .get_children_with_name("object")
+                .map(parse_object)
+                .collect::<Result<Vec<_>, _>>()?,
         },
         "imagelayer" => LayerData::ImageLayer {
             repeat_x: e.get_attr_or_default("repeatx", |s| match s.as_str() {
