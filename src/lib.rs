@@ -117,19 +117,22 @@ impl Plugin for TiledMapPlugin {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LayerId(usize);
 
+#[derive(Debug, Clone, Copy)]
 pub enum StaggerAxis {
     X,
     Y,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum StaggerIndex {
     Even,
     Odd,
 }
 
+#[derive(Debug, Clone)]
 pub enum MapOrientation {
     Orthogonal,
     Isometric,
@@ -141,7 +144,7 @@ pub enum MapOrientation {
     },
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum MapRenderOrder {
     #[default]
     RightDown,
@@ -150,7 +153,7 @@ pub enum MapRenderOrder {
     LeftUp,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct EditorSettings {
     pub chunk_size: Option<UVec2>,
     pub export: Option<(String, String)>,
@@ -163,6 +166,7 @@ fn parse_editor_settings(e: &Element) -> Result<EditorSettings, TiledAssetLoader
     })
 }
 
+#[derive(Debug, Clone)]
 pub struct Layer {
     pub name: String,
     pub class: String,
@@ -175,13 +179,14 @@ pub struct Layer {
     pub visible: bool,
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum ObjectGroupDrawOrder {
     #[default]
     TopDown,
     Index,
 }
 
+#[derive(Debug, Clone)]
 pub enum LayerData {
     Group {
         children: HashMap<LayerId, Layer>,
@@ -202,7 +207,7 @@ pub enum LayerData {
     },
 }
 
-#[derive(TypePath, Asset)]
+#[derive(Debug, Clone, TypePath, Asset)]
 pub struct TiledMap {
     pub class: String,
     pub orientation: MapOrientation,
@@ -433,6 +438,7 @@ async fn parse_tilemap(
     })
 }
 
+#[derive(Clone, Debug)]
 pub struct Object {
     pub name: String,
     pub object_type: String,
@@ -655,13 +661,13 @@ fn parse_color(s: &String) -> Result<Color, TiledAssetLoaderError> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnimationFrame {
     pub tile_id: usize,
     pub duration: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TileData {
     pub tile_type: String,
     pub probability: f32,
@@ -672,7 +678,7 @@ pub struct TileData {
     pub properties: HashMap<String, Property>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum TileObjectAlignment {
     #[default]
     Unspecified,
@@ -687,21 +693,21 @@ pub enum TileObjectAlignment {
     BottomRight,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum TileSetFillMode {
     #[default]
     Stretch,
     PreserveAspectFit,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum RenderMode {
     #[default]
     Tile,
     Grid,
 }
 
-#[derive(TypePath, Asset, Debug)]
+#[derive(TypePath, Clone, Asset, Debug)]
 pub struct TiledSet {
     pub name: String,
     pub class: String,
@@ -715,7 +721,7 @@ pub struct TiledSet {
     pub properties: HashMap<String, Property>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Property {
     String(String),
     Int(i64),
@@ -924,6 +930,7 @@ async fn parse_tile(
     ))
 }
 
+#[derive(Debug, Clone)]
 struct Base64Reader<'a> {
     data: &'a [u8],
     count: u8,
