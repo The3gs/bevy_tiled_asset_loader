@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use bevy::app::Plugin;
 use bevy::asset::io::Reader;
 use bevy::asset::Asset;
@@ -7,16 +9,17 @@ use bevy::asset::AsyncReadExt;
 use bevy::asset::Handle;
 
 use bevy::asset::ParseAssetPathError;
+use bevy::color::Srgba;
 use bevy::math::IVec2;
 use bevy::math::UVec2;
 use bevy::math::Vec2;
 use bevy::reflect::TypePath;
-use bevy::render::color::Color;
 use bevy::render::texture::Image;
 
 use bevy::sprite::TextureAtlasLayout;
 use bevy::utils::BoxedFuture;
 
+use bevy::utils::ConditionalSendFuture;
 use bevy::utils::HashMap;
 use thiserror::Error;
 
@@ -175,7 +178,7 @@ pub struct Layer {
     pub offset: IVec2,
     pub opacity: f32,
     pub parallax: Vec2,
-    pub tint_color: Option<Color>,
+    pub tint_color: Option<Srgba>,
     pub visible: bool,
 }
 
@@ -196,7 +199,7 @@ pub enum LayerData {
         data: Vec<Vec<usize>>,
     },
     ObjectGroup {
-        color: Option<Color>,
+        color: Option<Srgba>,
         draw_order: ObjectGroupDrawOrder,
         objects: Vec<Object>,
     },
@@ -215,7 +218,7 @@ pub struct TiledMap {
     pub map_size: UVec2,
     pub tile_size: Vec2,
     pub paralax_origin: IVec2,
-    pub background_color: Option<Color>,
+    pub background_color: Option<Srgba>,
     pub next_layer_id: usize,
     pub next_object_id: usize,
     pub infinite: bool,
@@ -624,7 +627,7 @@ fn parse_layer_data(e: &Element) -> Result<Vec<Vec<usize>>, TiledAssetLoaderErro
     }
 }
 
-fn parse_color(s: &String) -> Result<Color, TiledAssetLoaderError> {
+fn parse_color(s: &String) -> Result<Srgba, TiledAssetLoaderError> {
     let code = s.as_str();
     let code = if code.starts_with('#') {
         &code[1..]
@@ -646,13 +649,13 @@ fn parse_color(s: &String) -> Result<Color, TiledAssetLoaderError> {
     }
 
     match code.as_bytes() {
-        [a0, a1, r0, r1, g0, g1, b0, b1] => Ok(Color::rgba_u8(
+        [a0, a1, r0, r1, g0, g1, b0, b1] => Ok(Srgba::rgba_u8(
             hex_byte(r0, r1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
             hex_byte(g0, g1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
             hex_byte(b0, b1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
             hex_byte(a0, a1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
         )),
-        [r0, r1, g0, g1, b0, b1] => Ok(Color::rgb_u8(
+        [r0, r1, g0, g1, b0, b1] => Ok(Srgba::rgb_u8(
             hex_byte(r0, r1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
             hex_byte(g0, g1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
             hex_byte(b0, b1).ok_or_else(|| TiledAssetLoaderError::InvalidValue(s.clone()))?,
@@ -711,8 +714,8 @@ pub enum RenderMode {
 pub struct TiledSet {
     pub name: String,
     pub class: String,
-    pub tile_count: usize,
-    pub columns: usize,
+    pub tile_count: u32,
+    pub columns: u32,
     pub object_alignment: TileObjectAlignment,
     pub render_mode: RenderMode,
     pub fill_mode: TileSetFillMode,
@@ -745,7 +748,9 @@ impl AssetLoader for TiledSetLoader {
         reader: &'a mut Reader,
         _setting: &'a Self::Settings,
         load_context: &'a mut bevy::asset::LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+    ) -> impl ConditionalSendFuture
+           + Future<Output = Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>>
+    {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
@@ -776,10 +781,10 @@ async fn parse_tileset(
 
         let tilewidth = set.get_attr_or_default("tilewidth", |n| Ok(n.parse::<f32>()?))?;
         let tileheight = set.get_attr_or_default("tileheight", |n| Ok(n.parse::<f32>()?))?;
-        let spacing = set.get_attr_or_default("spacing", |n| Ok(n.parse::<f32>()?))?;
-        let margin = set.get_attr_or_default("margin", |n| Ok(n.parse::<f32>()?))?;
-        let tilecount = set.get_attr_or_default("tilecount", |n| Ok(n.parse::<usize>()?))?;
-        let columns = set.get_attr_or_default("columns", |n| Ok(n.parse::<usize>()?))?;
+        let spacing = set.get_attr_or_default("spacing", |n| Ok(n.parse::<u32>()?))?;
+        let margin = set.get_attr_or_default("margin", |n| Ok(n.parse::<u32>()?))?;
+        let tilecount = set.get_attr_or_default("tilecount", |n| Ok(n.parse::<u32>()?))?;
+        let columns = set.get_attr_or_default("columns", |n| Ok(n.parse::<u32>()?))?;
 
         let object_alignment =
             set.get_attr_or_default("objectalignment", |s| match s.as_str() {
@@ -809,11 +814,11 @@ async fn parse_tileset(
         })?;
 
         let texture_layout_data = TextureAtlasLayout::from_grid(
-            Vec2::new(tileheight, tilewidth),
+            UVec2::new(tileheight as u32, tilewidth as u32),
             columns,
             tilecount / columns,
-            Some(Vec2::new(spacing, spacing)),
-            Some(Vec2::new(margin, margin)),
+            Some(UVec2::new(spacing, spacing)),
+            Some(UVec2::new(margin, margin)),
         );
 
         let layout_handle =
@@ -1056,18 +1061,18 @@ mod tests {
         app.init_asset_loader::<TiledSetLoader>();
         app.init_asset::<TiledSet>();
 
-        let asset_server = app.world.resource::<AssetServer>();
+        let asset_server = app.world().resource::<AssetServer>();
 
         let handle: Handle<TiledSet> = asset_server.load("NonEmbedded.tsx");
 
-        for _ in 0..100 {
+        for _ in 0..1000 {
             app.update();
         }
 
         let set: &TiledSet = app
-            .world
+            .world()
             .resource::<Assets<TiledSet>>()
-            .get(handle)
+            .get(&handle)
             .unwrap();
     }
 
@@ -1087,7 +1092,7 @@ mod tests {
         app.init_asset::<TiledSet>();
         app.init_asset::<TiledMap>();
 
-        let asset_server = app.world.resource::<AssetServer>();
+        let asset_server = app.world().resource::<AssetServer>();
 
         let handle: Handle<TiledMap> = asset_server.load("NonEmbeddedTilemap.tmx");
 
@@ -1096,9 +1101,9 @@ mod tests {
         }
 
         let map = app
-            .world
+            .world()
             .resource::<Assets<TiledMap>>()
-            .get(handle)
+            .get(&handle)
             .unwrap();
 
         assert_eq!(map.layers.len(), 1);
