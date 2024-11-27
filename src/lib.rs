@@ -17,7 +17,6 @@ use bevy::reflect::TypePath;
 use bevy::render::texture::Image;
 
 use bevy::sprite::TextureAtlasLayout;
-use bevy::utils::BoxedFuture;
 
 use bevy::utils::ConditionalSendFuture;
 use bevy::utils::HashMap;
@@ -273,7 +272,9 @@ impl AssetLoader for TiledMapLoader {
         reader: &'a mut Reader,
         _setting: &'a Self::Settings,
         load_context: &'a mut bevy::asset::LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
+    ) -> impl ConditionalSendFuture
+           + Future<Output = Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>>
+    {
         Box::pin(async move {
             let mut bytes = Vec::new();
             reader.read_to_end(&mut bytes).await?;
@@ -1044,8 +1045,6 @@ fn parse_properties(e: &Element) -> Result<HashMap<String, Property>, TiledAsset
 #[cfg(test)]
 mod tests {
 
-    use bevy::log::LogPlugin;
-
     use super::*;
 
     #[test]
@@ -1069,8 +1068,7 @@ mod tests {
             app.update();
         }
 
-        let set: &TiledSet = app
-            .world()
+        app.world()
             .resource::<Assets<TiledSet>>()
             .get(&handle)
             .unwrap();
