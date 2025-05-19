@@ -1,24 +1,20 @@
-use std::future::Future;
-
 use bevy::app::Plugin;
 use bevy::asset::io::Reader;
 use bevy::asset::Asset;
 use bevy::asset::AssetApp;
 use bevy::asset::AssetLoader;
-use bevy::asset::AsyncReadExt;
 use bevy::asset::Handle;
 
 use bevy::asset::ParseAssetPathError;
 use bevy::color::Srgba;
+use bevy::image::Image;
 use bevy::math::IVec2;
 use bevy::math::UVec2;
 use bevy::math::Vec2;
 use bevy::reflect::TypePath;
-use bevy::render::texture::Image;
 
 use bevy::sprite::TextureAtlasLayout;
 
-use bevy::utils::ConditionalSendFuture;
 use bevy::utils::HashMap;
 use thiserror::Error;
 
@@ -161,7 +157,7 @@ pub struct EditorSettings {
     pub export: Option<(String, String)>,
 }
 
-fn parse_editor_settings(e: &Element) -> Result<EditorSettings, TiledAssetLoaderError> {
+fn parse_editor_settings(_e: &Element) -> Result<EditorSettings, TiledAssetLoaderError> {
     Ok(EditorSettings {
         chunk_size: todo!(),
         export: todo!(),
@@ -267,22 +263,18 @@ impl AssetLoader for TiledMapLoader {
     type Settings = ();
     type Error = TiledAssetLoaderError;
 
-    fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader,
-        _setting: &'a Self::Settings,
-        load_context: &'a mut bevy::asset::LoadContext,
-    ) -> impl ConditionalSendFuture
-           + Future<Output = Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>>
-    {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _setting: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
 
-            let set = Element::parse(bytes.as_slice())?;
+        let set = Element::parse(bytes.as_slice())?;
 
-            parse_tilemap(set, load_context).await
-        })
+        parse_tilemap(set, load_context).await
     }
 
     fn extensions(&self) -> &[&str] {
@@ -744,22 +736,18 @@ impl AssetLoader for TiledSetLoader {
     type Settings = ();
     type Error = TiledAssetLoaderError;
 
-    fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader,
-        _setting: &'a Self::Settings,
-        load_context: &'a mut bevy::asset::LoadContext,
-    ) -> impl ConditionalSendFuture
-           + Future<Output = Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error>>
-    {
-        Box::pin(async move {
-            let mut bytes = Vec::new();
-            reader.read_to_end(&mut bytes).await?;
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _setting: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<<Self as AssetLoader>::Asset, <Self as AssetLoader>::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
 
-            let set = Element::parse(bytes.as_slice())?;
+        let set = Element::parse(bytes.as_slice())?;
 
-            parse_tileset(&set, load_context).await
-        })
+        parse_tileset(&set, load_context).await
     }
 
     fn extensions(&self) -> &[&str] {
