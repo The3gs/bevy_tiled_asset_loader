@@ -13,9 +13,9 @@ use bevy::math::UVec2;
 use bevy::math::Vec2;
 use bevy::reflect::TypePath;
 
-use bevy::sprite::TextureAtlasLayout;
+use bevy::image::TextureAtlasLayout;
 
-use bevy::utils::HashMap;
+use bevy::platform::collections::hash_map::HashMap;
 use thiserror::Error;
 
 use xmltree::Element;
